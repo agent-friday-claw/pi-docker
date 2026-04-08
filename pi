@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Run Pi coding agent in Docker
+# Place a .env file next to this script with your API keys, e.g.:
+#   ANTHROPIC_API_KEY=sk-ant-...
+#   OPENAI_API_KEY=sk-...
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/.env"
+PI_CONFIG="$HOME/.pi"
+
+# Create pi config dir if it doesn't exist
+mkdir -p "$PI_CONFIG"
+
+docker run -it --rm \
+  --env-file "$ENV_FILE" \
+  -v "$(pwd):/workspace" \
+  -v "$PI_CONFIG:/root/.pi" \
+  ghcr.io/agent-friday-claw/pi-docker:latest

@@ -15,4 +15,5 @@ docker run -it --rm \
   --env-file "$ENV_FILE" \
   -v "$(pwd):/workspace" \
   -v "$PI_CONFIG:/root/.pi" \
+  -w /workspace \
   ghcr.io/agent-friday-claw/pi-docker:latest

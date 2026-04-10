@@ -55,6 +55,7 @@ docker run -it --rm \
   --env-file "$ENV_FILE" \
   -v "$(pwd):/workspace" \
   -v "$PI_CONFIG:/root/.pi" \
+  -w /workspace \
   ghcr.io/agent-friday-claw/pi-docker:latest
 ```
 
@@ -80,6 +81,7 @@ docker run -it --rm \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -v $(pwd):/workspace \
   -v $HOME/.pi:/root/.pi \
+  -w /workspace \
   ghcr.io/agent-friday-claw/pi-docker:latest
 ```
 

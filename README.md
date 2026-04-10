@@ -31,7 +31,7 @@ cd ~/my-project
 /path/to/pi-docker/pi
 ```
 
-Pi will open with `/workspace` mapped to your current directory.
+Pi will open with `/pi-workspace` mapped to your current directory.
 
 ---
 
@@ -40,7 +40,7 @@ Pi will open with `/workspace` mapped to your current directory.
 The `pi` script is a convenience wrapper around `docker run`. It:
 
 - Loads API keys from a `.env` file in the same directory as the script
-- Mounts your **current working directory** as `/workspace` inside the container
+- Mounts your **current working directory** as `/pi-workspace` inside the container
 - Persists Pi's settings and session history to `~/.pi` on your host
 
 ```bash
@@ -53,9 +53,9 @@ mkdir -p "$PI_CONFIG"
 
 docker run -it --rm \
   --env-file "$ENV_FILE" \
-  -v "$(pwd):/workspace" \
+  -v "$(pwd):/pi-workspace" \
   -v "$PI_CONFIG:/root/.pi" \
-  -w /workspace \
+  -w /pi-workspace \
   ghcr.io/agent-friday-claw/pi-docker:latest
 ```
 
@@ -79,9 +79,9 @@ If you'd rather run the container directly:
 ```bash
 docker run -it --rm \
   -e ANTHROPIC_API_KEY=sk-ant-... \
-  -v $(pwd):/workspace \
+  -v $(pwd):/pi-workspace \
   -v $HOME/.pi:/root/.pi \
-  -w /workspace \
+  -w /pi-workspace \
   ghcr.io/agent-friday-claw/pi-docker:latest
 ```
 

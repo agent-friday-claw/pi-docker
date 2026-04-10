@@ -13,7 +13,7 @@ mkdir -p "$PI_CONFIG"
 
 docker run -it --rm \
   --env-file "$ENV_FILE" \
-  -v "$(pwd):/workspace" \
+  -v "$(pwd):/pi-workspace" \
   -v "$PI_CONFIG:/root/.pi" \
-  -w /workspace \
+  -w /pi-workspace \
   ghcr.io/agent-friday-claw/pi-docker:latest

@@ -14,7 +14,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- Install Pi coding agent ----
-RUN npm install -g @mariozechner/pi-coding-agent
+#RUN npm install -g @mariozechner/pi-coding-agent
+RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 
 # ---- Workspace ----
 WORKDIR /workspace

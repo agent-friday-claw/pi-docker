@@ -1,5 +1,6 @@
 # ---- Base ----
-FROM node:20-slim
+FROM node:22-slim
+
 
 # ---- System deps ----
 RUN apt-get update && apt-get install -y \

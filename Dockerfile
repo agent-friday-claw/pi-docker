@@ -18,36 +18,26 @@ RUN apt-get update && apt-get install -y \
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 
 # ---- Install Scratch MCP Server via NPM ----
-# This replaces the git clone method with a stable, versioned package registry download
 WORKDIR /opt/scratch-mcp-server
 RUN npm install @unom-technology/scratch-mcp-server \
     && chmod -R 755 /opt/scratch-mcp-server
 
-# ---- Setup Non-Root User ----
-RUN useradd -m -s /bin/bash developer
-
-# ---- Pre-register MCP Config for the Developer User ----
-RUN mkdir -p /home/developer/.pi/agent && echo '{ \
+# ---- Create an In-Image Backup Config ----
+# Since /root/.pi gets completely covered by your Mac volume mount,
+# we place the configuration file here as a fallback template.
+RUN mkdir -p /opt/scratch-mcp-server/config && echo '{ \
   "mcpServers": { \
     "scratch": { \
       "command": "node", \
       "args": ["/opt/scratch-mcp-server/node_modules/@unom-technology/scratch-mcp-server/dist/index.js"], \
       "env": { \
-        "SCRATCH_MCP_OUT_DIR": "/workspace/scratch-projects" \
+        "SCRATCH_MCP_OUT_DIR": "/pi-workspace/scratch-projects" \
       } \
     } \
   } \
-}' > /home/developer/.pi/agent/mcp.json \
-    && chown -R developer:developer /home/developer/.pi
+}' > /opt/scratch-mcp-server/config/mcp.json
 
-# ---- Workspace ----
-WORKDIR /workspace
-RUN mkdir -p /workspace/scratch-projects && chown -R developer:developer /workspace
-
-# Switch context to the non-root user
-USER developer
-
+WORKDIR /pi-workspace
 SHELL ["/bin/bash", "-c"]
 
-# Pi is a TUI — needs TTY at runtime (docker run -it)
 CMD ["pi"]

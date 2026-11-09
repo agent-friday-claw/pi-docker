@@ -12,22 +12,24 @@ PI_CONFIG="$HOME/.pi"
 mkdir -p "$PI_CONFIG/agent"
 
 # Dynamically link the Scratch server configuration into your local Mac mount path
+# Update this specific block inside your local bash script:
 if [ ! -f "$PI_CONFIG/agent/mcp.json" ]; then
-  echo "Injecting clean Scratch MCP configuration template..."
+  echo "Injecting clean Scratch Python MCP configuration template..."
   echo '{
   "mcpServers": {
     "scratch": {
-      "command": "node",
-      "args": ["/opt/scratch-mcp-server/dist/index.js"],
+      "command": "/opt/scratch-mcp/.venv/bin/python",
+      "args": ["-m", "scratch_mcp"],
+      "cwd": "/opt/scratch-mcp",
       "env": {
-        "SCRATCH_MCP_OUT_DIR": "/pi-workspace/scratch-projects"
-      }
+        "PYTHONPATH": "/opt/scratch-mcp"
+      },
+      "timeout": 600000
     }
   }
 }' > "$PI_CONFIG/agent/mcp.json"
-elif ! grep -q '"scratch"' "$PI_CONFIG/agent/mcp.json"; then
-  echo "⚠️ An mcp.json already exists but 'scratch' is missing. Please add the block manually."
 fi
+
 
 # Ensure output repository for games exists locally
 mkdir -p "$SCRIPT_DIR/scratch-projects"

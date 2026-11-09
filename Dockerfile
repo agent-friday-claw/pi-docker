@@ -17,13 +17,10 @@ RUN apt-get update && apt-get install -y \
 # ---- Install Pi coding agent ----
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 
-# ---- Download & Build Scratch MCP Server ----
+# ---- Install Scratch MCP Server via NPM ----
+# This replaces the git clone method with a stable, versioned package registry download
 WORKDIR /opt/scratch-mcp-server
-# Fixed target release/commit to ensure reproducible builds in GitHub Actions
-RUN git clone https://github.com . \
-    && git checkout 7b9d4f09e0be6c879d7211cfc67a7d4a46036f01 \
-    && npm install \
-    && npm run build \
+RUN npm install @unom-technology/scratch-mcp-server \
     && chmod -R 755 /opt/scratch-mcp-server
 
 # ---- Setup Non-Root User ----
@@ -34,7 +31,7 @@ RUN mkdir -p /home/developer/.pi/agent && echo '{ \
   "mcpServers": { \
     "scratch": { \
       "command": "node", \
-      "args": ["/opt/scratch-mcp-server/dist/index.js"], \
+      "args": ["/opt/scratch-mcp-server/node_modules/@unom-technology/scratch-mcp-server/dist/index.js"], \
       "env": { \
         "SCRATCH_MCP_OUT_DIR": "/workspace/scratch-projects" \
       } \

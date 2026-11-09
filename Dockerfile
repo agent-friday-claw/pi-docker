@@ -1,22 +1,18 @@
-# ---- Stage 1: Build the Scratch MCP Server ----
-FROM node:22-slim AS builder
-
-RUN apt-get update && apt-get install -y git ca-certificates && rm -rf /var/lib/apt/lists/*
+# ---- Stage 1: Build & Prep Scratch MCP Server ----
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 
 WORKDIR /src
+# Clone the real Python-based scratch-mcp repository
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+RUN git clone https://github.com/uukelele/scratch-mcp.git .
 
-# Bypassing the system URL filter by assembling the repository address dynamically
-ENV REPO_OWNER="unom-technology"
-ENV REPO_NAME="Scratch-MCP-Server"
-
-RUN git clone https://github.com/uukelele/scratch-mcp.git . \
-    && npm install \
-    && npm run build
+# Sync dependencies using uv into a local virtual environment (.venv)
+RUN uv sync --frozen
 
 # ---- Stage 2: Main Image Runtime ----
 FROM node:22-slim
 
-# ---- System deps ----
+# ---- System dependencies (Node, Python, and Rust Toolchain) ----
 RUN apt-get update && apt-get install -y \
     git \
     bash \
@@ -29,29 +25,36 @@ RUN apt-get update && apt-get install -y \
     espeak-ng \
     && rm -rf /var/lib/apt/lists/*
 
+# Install the Rust compiler required by the goboscript toolchain
+RUN curl --proto '=https' --tlsv1.2 -sSf https://rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install the required goboscript compiler and sb2gs decompiler tools via Cargo
+RUN rustup toolchain install nightly \
+    && cargo +nightly install --git https://github.com \
+    && cargo install --git https://github.com sb2gs-cli
+
 # ---- Install Pi coding agent ----
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 
-# ---- Copy compiled server files from builder stage ----
-WORKDIR /opt/scratch-mcp-server
-COPY --from=builder /src/dist ./dist
-COPY --from=builder /src/node_modules ./node_modules
-COPY --from=builder /src/package.json ./package.json
-
-RUN chmod -R 755 /opt/scratch-mcp-server
+# ---- Copy Python MCP environment from builder stage ----
+COPY --from=builder /src /opt/scratch-mcp
 
 # ---- Create an In-Image Backup Config ----
-RUN mkdir -p /opt/scratch-mcp-server/config && echo '{ \
+# Paths configured to target the Python module execution context
+RUN mkdir -p /opt/scratch-mcp/config && echo '{ \
   "mcpServers": { \
     "scratch": { \
-      "command": "node", \
-      "args": ["/opt/scratch-mcp-server/dist/index.js"], \
+      "command": "/opt/scratch-mcp/.venv/bin/python", \
+      "args": ["-m", "scratch_mcp"], \
+      "cwd": "/opt/scratch-mcp", \
       "env": { \
-        "SCRATCH_MCP_OUT_DIR": "/pi-workspace/scratch-projects" \
-      } \
+        "PYTHONPATH": "/opt/scratch-mcp" \
+      }, \
+      "timeout": 600000 \
     } \
   } \
-}' > /opt/scratch-mcp-server/config/mcp.json
+}' > /opt/scratch-mcp/config/mcp.json
 
 WORKDIR /pi-workspace
 SHELL ["/bin/bash", "-c"]

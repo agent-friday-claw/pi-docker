@@ -8,12 +8,35 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/.env"
 PI_CONFIG="$HOME/.pi"
 
-# Create pi config dir if it doesn't exist
-mkdir -p "$PI_CONFIG"
+# Create pi config tracking layout if it doesn't exist
+mkdir -p "$PI_CONFIG/agent"
 
+# Dynamically link the Scratch server configuration into your local Mac mount path
+if [ ! -f "$PI_CONFIG/agent/mcp.json" ]; then
+  echo "Injecting clean Scratch MCP configuration template..."
+  echo '{
+  "mcpServers": {
+    "scratch": {
+      "command": "node",
+      "args": ["/opt/scratch-mcp-server/dist/index.js"],
+      "env": {
+        "SCRATCH_MCP_OUT_DIR": "/pi-workspace/scratch-projects"
+      }
+    }
+  }
+}' > "$PI_CONFIG/agent/mcp.json"
+elif ! grep -q '"scratch"' "$PI_CONFIG/agent/mcp.json"; then
+  echo "⚠️ An mcp.json already exists but 'scratch' is missing. Please add the block manually."
+fi
+
+# Ensure output repository for games exists locally
+mkdir -p "$SCRIPT_DIR/scratch-projects"
+
+# Run container with port mapping enabled for TurboWarp web link previews
 docker run -it --rm \
   --env-file "$ENV_FILE" \
   -v "$(pwd):/pi-workspace" \
   -v "$PI_CONFIG:/root/.pi" \
+  -p 3000:3000 \
   -w /pi-workspace \
   ghcr.io/agent-friday-claw/pi-docker:latest

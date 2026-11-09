@@ -9,7 +9,7 @@ WORKDIR /src
 ENV REPO_OWNER="unom-technology"
 ENV REPO_NAME="Scratch-MCP-Server"
 
-RUN git clone https://github.com{REPO_OWNER}/${REPO_NAME}.git . \
+RUN git clone https://github.com/uukelele/scratch-mcp.git . \
     && npm install \
     && npm run build
 

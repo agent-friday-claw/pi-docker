@@ -1,18 +1,32 @@
-# ---- Stage 1: Build & Prep Scratch MCP Server ----
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
+# ---- Stage 1: Build Python MCP Server ----
+FROM node:22-slim AS py-builder
+
+ARG GH="https://github.com"
+ARG MCP_REPO="uukelele/scratch-mcp.git"
+
+RUN apt-get update && apt-get install -y git python3 ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 WORKDIR /src
-# Clone the real Python-based scratch-mcp repository
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
-RUN git clone https://github.com/uukelele/scratch-mcp.git .
+RUN git clone "${GH}/${MCP_REPO}" . \
+    && uv venv --python /usr/bin/python3 \
+    && uv sync --frozen
 
-# Sync dependencies using uv into a local virtual environment (.venv)
-RUN uv sync --frozen
+# ---- Stage 2: Build Rust Toolchain (goboscript & sb2gs) ----
+FROM rustlang/rust:nightly-bookworm-slim AS rust-builder
 
-# ---- Stage 2: Main Image Runtime ----
+ARG GH="https://github.com"
+ARG GOBO_REPO="aspizu/goboscript"
+ARG SB2GS_REPO="aspizu/sb2gs"
+
+RUN apt-get update && apt-get install -y git pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
+
+RUN cargo install --git "${GH}/${GOBO_REPO}" \
+    && cargo install --git "${GH}/${SB2GS_REPO}" sb2gs-cli
+
+# ---- Stage 3: Main Runtime Image ----
 FROM node:22-slim
 
-# ---- System dependencies (Node, Python, and Rust Toolchain) ----
 RUN apt-get update && apt-get install -y \
     git \
     bash \
@@ -25,23 +39,17 @@ RUN apt-get update && apt-get install -y \
     espeak-ng \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the Rust compiler required by the goboscript toolchain
-RUN curl --proto '=https' --tlsv1.2 -sSf https://rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-# Install the required goboscript compiler and sb2gs decompiler tools via Cargo
-RUN rustup toolchain install nightly \
-    && cargo +nightly install --git https://github.com \
-    && cargo install --git https://github.com sb2gs-cli
-
-# ---- Install Pi coding agent ----
+# Install Pi coding agent
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 
-# ---- Copy Python MCP environment from builder stage ----
-COPY --from=builder /src /opt/scratch-mcp
+# Copy compiled Rust binaries from Stage 2
+COPY --from=rust-builder /usr/local/cargo/bin/goboscript /usr/local/bin/goboscript
+COPY --from=rust-builder /usr/local/cargo/bin/sb2gs /usr/local/bin/sb2gs
 
-# ---- Create an In-Image Backup Config ----
-# Paths configured to target the Python module execution context
+# Copy Python MCP server and .venv from Stage 1
+COPY --from=py-builder /src /opt/scratch-mcp
+
+# Backup MCP configuration template
 RUN mkdir -p /opt/scratch-mcp/config && echo '{ \
   "mcpServers": { \
     "scratch": { \

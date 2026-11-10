@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""Serve .sb3 files over HTTP so they can be opened in TurboWarp from the host.
+
+Usage: scratch-preview [DIR] [--port 3000]
+
+Binds 0.0.0.0 so the container's published port (-p 3000:3000) reaches it.
+Prints a TurboWarp link for every .sb3 under DIR.
+"""
+import argparse
+import functools
+import os
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import quote
+
+
+class CORSHandler(SimpleHTTPRequestHandler):
+    # turbowarp.org fetches the project cross-origin, so CORS is required.
+    # Access-Control-Allow-Private-Network lets Chrome allow a public site
+    # to fetch from localhost.
+    def end_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "*")
+        self.send_header("Access-Control-Allow-Private-Network", "true")
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.end_headers()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("dir", nargs="?", default=".", type=Path)
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PREVIEW_PORT", 3000)))
+    args = parser.parse_args()
+
+    root = args.dir.resolve()
+    base = f"http://localhost:{args.port}"
+
+    print(f"Serving {root} at {base}/  (Ctrl+C to stop)")
+    projects = sorted(root.rglob("*.sb3"))
+    if not projects:
+        print("No .sb3 files found yet. Build a project first; links are served regardless.")
+    for sb3 in projects:
+        url = f"{base}/{quote(sb3.relative_to(root).as_posix())}"
+        print(f"\n  {sb3.relative_to(root)}")
+        print(f"    Play:     https://turbowarp.org/?project_url={quote(url, safe='')}")
+        print(f"    Download: {url}")
+    print(
+        "\nIf the TurboWarp link fails to load (browser blocks localhost), use the "
+        "Download link and open the file via TurboWarp's File > Load from your computer.",
+        flush=True,
+    )
+
+    handler = functools.partial(CORSHandler, directory=str(root))
+    ThreadingHTTPServer(("0.0.0.0", args.port), handler).serve_forever()
+
+
+if __name__ == "__main__":
+    main()
